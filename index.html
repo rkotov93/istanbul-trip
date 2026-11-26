@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Стамбул за два дня</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Rubik:wght@500;700&family=PT+Sans:wght@400;700&display=swap" rel="stylesheet">
+<style>
+/* VOICE: friendly pocket guide, calm, practical, two days, two colours
+   IDEA: a ferry-and-tile city guide — the route map is the hero, stops read like a timetable
+   PICTURE: hand-drawn schematic map of Istanbul's waters with numbered pins and the day's route by transport mode
+   COLOUR and TYPE: Iznik cobalt (day 1), Iznik tomato red (day 2), Bosphorus turquoise water; Rubik + PT Sans (Cyrillic)
+   LAYOUT: modest title, day tabs, map on top (sticky left column on wide screens), timetable of stops with big hanging times */
+:root{color-scheme:light dark;
+--bg:light-dark(#ffffff,#11161a);--ink:light-dark(#15191e,#eef1f3);--mute:light-dark(#5b636c,#9aa6b0);
+--line:light-dark(#e3e6e9,#27313a);--card:light-dark(#f6f7f8,#182027);
+--water:light-dark(#bfe2e5,#0e3a44);--land:light-dark(#f4f1ea,#1f262c);--coast:light-dark(#9cc9cd,#1c5562);
+--d1:light-dark(#2349c4,#7d9bff);--d2:light-dark(#cf3f28,#ff8a72);--c:var(--d1)}
+:root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
+*{box-sizing:border-box;min-width:0}
+body{margin:0;background:var(--bg);color:var(--ink);font:16.5px/1.55 "PT Sans",system-ui,sans-serif;overflow-x:clip}
+body.day2{--c:var(--d2)}
+h1,h2,h3{font-family:Rubik,system-ui,sans-serif;font-weight:700;line-height:1.08;text-wrap:balance;margin:0}
+.wrap{max-width:1240px;margin:0 auto;padding:clamp(18px,3vw,36px) max(4vw,14px) 48px}
+header{display:flex;flex-wrap:wrap;gap:10px 24px;align-items:end;justify-content:space-between;margin-bottom:16px}
+h1{font-size:clamp(30px,5vw,46px)}
+.lead{color:var(--mute);margin:6px 0 0}
+.tabs{display:flex;gap:8px;flex-wrap:wrap}
+.tab{font:600 16px Rubik,sans-serif;border:2px solid var(--line);background:var(--bg);color:var(--ink);border-radius:999px;padding:9px 18px;min-height:44px;cursor:pointer}
+.tab small{font:400 13px "PT Sans",sans-serif;color:var(--mute);margin-left:6px}
+.tab[aria-selected=true]{background:var(--c);border-color:var(--c);color:#fff}
+.tab[aria-selected=true] small{color:#fff;opacity:.85}
+.tab:focus-visible,button:focus-visible,a:focus-visible{outline:3px solid var(--c);outline-offset:2px}
+.grid{display:grid;gap:24px}
+@media(min-width:900px){.grid{grid-template-columns:minmax(0,1.1fr) minmax(0,1fr)}.mapcol{position:sticky;top:16px;align-self:start}}
+.mapbox{position:relative;border-radius:18px;overflow:hidden;background:var(--water);aspect-ratio:1000/860;border:1px solid var(--line)}
+.mapbox svg{position:absolute;inset:0;width:100%;height:100%;touch-action:manipulation}
+.views{position:absolute;top:10px;left:10px;display:flex;gap:6px;flex-wrap:wrap}
+.views button{font:600 13px Rubik,sans-serif;border:0;border-radius:999px;padding:0 12px;min-height:34px;background:color-mix(in srgb,var(--bg) 88%,transparent);color:var(--ink);cursor:pointer;box-shadow:0 1px 4px #0002}
+.views button.on{background:var(--ink);color:var(--bg)}
+.legend{display:flex;flex-wrap:wrap;gap:6px 16px;margin:10px 2px 0;font-size:14px;color:var(--mute)}
+.legend span{display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.note{font-size:13px;color:var(--mute);margin:6px 2px 0}
+.dayhead{margin:4px 0 14px}
+.dayhead h2{font-size:clamp(24px,3.4vw,32px);color:var(--c)}
+.dayhead p{margin:4px 0 0;color:var(--mute)}
+ol.stops{list-style:none;margin:0;padding:0}
+.stop{display:grid;grid-template-columns:62px minmax(0,1fr);gap:0 14px}
+.time{font:700 19px Rubik,sans-serif;white-space:nowrap;padding-top:14px;text-align:right;color:var(--c)}
+.card{background:var(--card);border-radius:16px;padding:14px 16px 12px;border:2px solid transparent;transition:border-color .2s}
+.stop.sel .card{border-color:var(--c)}
+.stop.done .card{opacity:.55}
+.stop.home .card{background:transparent;border:2px dashed var(--line)}
+.emb{display:block;width:100%;aspect-ratio:16/10;border:0;border-radius:12px;margin-top:10px;background:var(--water)}
+.stop.home .num{background:var(--ink);color:var(--bg)}
+.ct{display:flex;gap:10px;align-items:flex-start}
+.num{flex:none;width:30px;height:30px;border-radius:50%;background:var(--c);color:#fff;font:700 15px/30px Rubik,sans-serif;text-align:center;margin-top:1px}
+.card h3{font-size:20px}
+.tr{font-size:14px;color:var(--mute)}
+.card ul{margin:10px 0 8px;padding-left:20px}
+.card li{margin:4px 0}
+.tip{font-size:15px;border-left:3px solid var(--c);padding:2px 0 2px 10px;margin:8px 0}
+.acts{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.acts a,.acts button{font:600 14px Rubik,sans-serif;display:inline-flex;align-items:center;gap:6px;min-height:40px;padding:0 14px;border-radius:999px;text-decoration:none;cursor:pointer;border:1.5px solid var(--line);background:var(--bg);color:var(--ink)}
+.acts a.go{background:var(--c);border-color:var(--c);color:#fff}
+.acts button[aria-pressed=true]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.leg{grid-column:2;display:flex;align-items:center;gap:10px;padding:10px 4px 10px 6px;font-size:15px;color:var(--mute)}
+.leg svg{flex:none}
+.leg b{color:var(--ink);font-weight:700}
+.extra{margin-top:36px;border-top:1px solid var(--line);padding-top:24px;display:grid;gap:18px;grid-template-columns:repeat(auto-fit,minmax(240px,1fr))}
+.extra h3{font-size:18px;margin-bottom:6px}
+.extra p{margin:0;font-size:15.5px}
+@media(max-width:600px){.stop{grid-template-columns:50px minmax(0,1fr);gap:0 10px}.time{font-size:16px}.card{padding:12px 13px 10px}}
+@media(prefers-reduced-motion:reduce){.card{transition:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <div>
+    <h1>Стамбул за два дня</h1>
+    <p class="lead">Старт и финиш на Galataport · метро, паромы, канатная дорога · отъезд в пятницу в 20:00</p>
+  </div>
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" id="t-day1" data-d="day1">День 1 <small>чт, с 14:00</small></button>
+    <button class="tab" role="tab" id="t-day2" data-d="day2">День 2 <small>пт, с 13:00</small></button>
+  </div>
+</header>
+
+<div class="grid">
+  <div class="mapcol">
+    <div class="mapbox" id="mapbox">
+      <svg id="map" role="img" aria-label="Схема маршрута по Стамбулу"></svg>
+      <div class="views">
+        <button data-v="day" class="on">Маршрут дня</button>
+        <button data-v="old">Старый город</button>
+        <button data-v="all">Весь город</button>
+      </div>
+    </div>
+    <div class="legend" id="legend"></div>
+    <p class="note">Схема упрощённая. «Маршрут сюда» откроет в Google Картах путь от предыдущей точки. Под каждой точкой есть карта Google.</p>
+  </div>
+  <section>
+    <div class="dayhead"><h2 id="dtitle"></h2><p id="dsub"></p></div>
+    <ol class="stops" id="stops"></ol>
+  </section>
+</div>
+
+<div class="extra">
+  <div><h3>Istanbulkart</h3><p>Одна карта на двоих: прикладывайте её по очереди. Работает в метро, трамвае, на паромах и канатной дороге. Продаётся и пополняется в автоматах у станций.</p></div>
+  <div><h3>Мечети</h3><p>Плечи и колени должны быть закрыты, женщинам нужно покрыть голову. На время намаза туристов не пускают. Если мечеть закрыта, подождите 20–40 минут или поменяйте порядок точек.</p></div>
+  <div><h3>Свет и время</h3><p>Солнце садится около 16:40. Паромы в темноте тоже красивые, так что по паромам не спешите. А вот на холм Пьер Лоти лучше успеть до заката.</p></div>
+  <div><h3>Отъезд</h3><p>В пятницу в 18:45 выдвигайтесь от Галаты. Если едете в аэропорт IST, пропустите башню и уезжайте около 17:30.</p></div>
+</div>
+</div>
+
+<script>
+{
+const HOME={h:1,n:'Galataport',tr:'Meclis-i Mebusan Cad. 8, Kılıçali Paşa, Beyoğlu',ll:[41.0262,28.9825],q:'Galataport, Meclis-i Mebusan Caddesi 8, Beyoğlu, İstanbul',f:['Здесь первый в мире подземный круизный терминал. Когда лайнер швартуется, из набережной поднимаются ограждения, а пассажиры проходят под землёй.','Набережная длиной около 1,2 км почти два века была закрыта для горожан: здесь стояли портовые склады.','В комплексе стоит новое здание музея Istanbul Modern по проекту Ренцо Пиано, открытое в 2023 году.','Рядом стоит барочная мечеть Нусретие и часовая башня Топхане XIX века.']};
+const DAYS={
+day1:{title:'День 1 · четверг',sub:'Султанахмет, паром в Азию, метро под Босфором',stops:[
+ Object.assign({t:'14:00',tip:'Остановка трамвая Tophane в 3 минутах от выхода на набережную.'},HOME,{n:'Старт: Galataport'}),
+ {t:'14:20',n:'Святая София',tr:'Ayasofya',ll:[41.0086,28.9802],
+  f:['Её построили за неполных шесть лет, в 532–537 годах, при Юстиниане. Почти тысячу лет это был крупнейший храм мира.','Купол около 31 м в диаметре и 55 м в высоту. Современникам казалось, что он висит в воздухе, будто подвешен с неба на цепи.','Храм стоит на месте прежнего, сгоревшего в 532 году во время восстания «Ника» на соседнем Ипподроме.','На мраморном парапете верхней галереи сохранилась нацарапанная рунами надпись «Хальвдан»: так в IX веке отметился варяг из императорской гвардии.','В южной галерее висит мозаика «Деисус» XIII века: Христос, Богородица и Иоанн Креститель. Её считают вершиной византийской мозаики.','Мечетью храм стал в 1453 году, музеем в 1934-м, а с 2020 года снова мечеть.'],
+  tip:'Туристы ходят по верхней галерее, вход €25. Руническую надпись ищите на парапете в южной части. Закладывайте около часа.'},
+ {t:'15:40',n:'Цистерна Базилика',tr:'Yerebatan Sarnıcı',ll:[41.0084,28.9779],
+  f:['Подземное водохранилище VI века: 336 колонн, многие взяты из старых храмов.','В дальнем углу две колонны стоят на головах Медузы, одна на боку, другая вверх ногами. Почему так, до сих пор спорят.','После падения Византии про цистерну забыли. В 1540-х её заново открыл француз Пьер Жиль: местные жители набирали воду и ловили рыбу через дыры в полу подвалов.','Здесь снимали сцены фильма «Из России с любовью» про Джеймса Бонда и экранизацию «Инферно» Дэна Брауна.','Среди колонн есть «плачущая»: она покрыта узором, похожим на слёзы, и всегда влажная.'],
+  tip:'Внутри прохладно и сыро. Хватит минут сорока.'},
+ {t:'16:20',n:'Голубая мечеть и Ипподром',tr:'Sultanahmet Camii · At Meydanı',ll:[41.0054,28.9768],
+  f:['Голубой мечеть зовут за 20 000 с лишним изникских изразцов внутри.','По легенде, шесть минаретов наделали скандал: столько было только в Мекке, и там пришлось достроить седьмой.','Строить её начали в 1609 году. Султану Ахмеду I было 19 лет, и умер он вскоре после окончания стройки. Архитектор Седефкяр Мехмед-ага был учеником великого Синана.','На Ипподроме стоит египетский обелиск Тутмоса III. Ему около 3500 лет, в город его привезли в 390 году.','Рядом стоит Змеиная колонна: её отлили в Дельфах в честь победы греков над персами в 479 году до н. э.','Ипподром вмещал до 100 000 зрителей. В 532 году здесь началось восстание «Ника», и при его подавлении погибли около 30 000 человек.'],
+  tip:'Вход бесплатный. Если мечеть закрыта на намаз, сначала погуляйте по Ипподрому.'},
+ {t:'17:00',n:'Пристань Эминёню',tr:'Eminönü İskelesi',ll:[41.0175,28.9735],
+  f:['С лодок, которые качаются у набережной, продают балык-экмек: жареную рыбу в булке. Это главный стрит-фуд города.','Новую мечеть (Yeni Cami) у самой пристани строили 66 лет, с 1597 по 1663 год.','С Галатского моста рядом с утра до ночи рыбачат десятки удильщиков, а под мостом работают рыбные ресторанчики.'],
+  tip:'Паромы в Кадыкёй ходят часто. Встаньте у правого борта: оттуда видно мыс Сарайбурну и дворец Топкапы.'},
+ {t:'17:45',n:'Кадыкёй',tr:'Kadıköy · азиатский берег',ll:[40.9905,29.0262],
+  f:['Это древний Халкидон: его основали примерно на 20 лет раньше Византия.','По легенде, оракул назвал халкидонцев слепыми: они не заметили лучшее место напротив, где позже вырос Константинополь.','В 451 году здесь прошёл Халкидонский собор, один из главных соборов в истории христианства.','С парома видно вокзал Хайдарпаша: это похожее на замок здание построили немецкие архитекторы в начале XX века, когда строили Багдадскую железную дорогу.'],
+  tip:'Поужинайте в рыночных улочках вокруг Güneşlibahçe Sokak, потом пройдитесь до района Мода.'},
+ {t:'20:00',n:'Marmaray: под Босфором',tr:'Ayrılık Çeşmesi → Sirkeci',ll:[41.0006,29.0298],
+  f:['Тоннель открыли в 2013 году. Он лежит примерно на 60 м ниже уровня моря, это один из самых глубоких погружных тоннелей в мире.','Идею железной дороги под проливом впервые предложили ещё при султане Абдул-Меджиде, в 1860 году.','Под водой поезд идёт около 4 минут. Пролив сверху вы как раз пересекли на пароме.'],
+  tip:'Садитесь в сторону Европы и выходите в Sirkeci, через одну станцию после пролива.'},
+ {t:'20:20',n:'Вокзал Сиркеджи',tr:'Sirkeci Garı',ll:[41.0140,28.9772],
+  f:['Вокзал открылся в 1890 году и был конечной станцией «Восточного экспресса».','Говорят, Агата Кристи писала «Убийство в Восточном экспрессе» в отеле Pera Palace, построенном для пассажиров этого поезда.','При строительстве Marmaray неподалёку, в Йеникапы, нашли византийскую гавань IV века и 37 затонувших кораблей.'],
+  tip:'Выйдите к трамваю T1 (остановка Sirkeci), едьте в сторону Kabataş до Tophane.'},
+ Object.assign({t:'20:40',tip:'Вечером набережная и крыша Galataport в огнях, хорошее место завершить день.'},HOME,{n:'Финиш: Galataport',f:null})
+],legs:[
+ {m:'tram',x:'Трамвай <b>T1</b> Tophane → Sultanahmet, около 15 минут, через Галатский мост',p:[[41.0265,28.9815],[41.0228,28.9758],[41.0168,28.9722],[41.0156,28.9768],[41.0132,28.9790],[41.0079,28.9757]]},
+ {m:'walk',x:'Пешком 3 минуты'},
+ {m:'walk',x:'Пешком 5 минут через Ипподром'},
+ {m:'tram',x:'Трамвай <b>T1</b> Sultanahmet → Eminönü, 10 минут',p:[[41.0079,28.9757],[41.0105,28.9785],[41.0132,28.9790],[41.0156,28.9768]]},
+ {m:'ferry',x:'<b>Паром</b> Eminönü → Kadıköy, около 25 минут',p:[[41.0195,28.980],[41.017,28.992],[41.008,29.000],[40.998,29.010],[40.993,29.021]]},
+ {m:'metro',x:'Метро <b>M4</b> Kadıköy → Ayrılık Çeşmesi, 1 остановка'},
+ {m:'metro',x:'<b>Marmaray</b> под проливом до Sirkeci, около 10 минут',p:[[41.0255,29.0155]]},
+ {m:'tram',x:'Трамвай <b>T1</b> Sirkeci → Tophane, около 10 минут',p:[[41.0168,28.9722],[41.0228,28.9758],[41.0265,28.9815]]}
+]},
+day2:{title:'День 2 · пятница',sub:'Базары, канатная дорога, паром по Золотому Рогу',stops:[
+ Object.assign({t:'13:00',tip:'Трамвай T1 от остановки Tophane в сторону Bağcılar.',f:null},HOME,{n:'Старт: Galataport',f:null}),
+ {t:'13:20',n:'Гранд-базар',tr:'Kapalıçarşı',ll:[41.0107,28.9681],
+  f:['Один из старейших крытых рынков мира: его заложили в 1455–1461 годах, вскоре после взятия Константинополя.','Здесь около 4000 лавок на 60 с лишним улицах, а внутри до сих пор есть мечеть и фонтаны.','В Османской империи базар служил и банком: в старой части, бедестене, купцы хранили ценности в сейфах.','Каждая улица исторически принадлежала своему ремеслу. Отсюда названия: улица Ювелиров, улица Шапочников, улица Ковровщиков.'],
+  tip:'Торгуйтесь: первая цена почти всегда завышена. Удобнее всего входить через ворота Beyazıt, прямо от трамвая.'},
+ {t:'14:30',n:'Египетский базар',tr:'Mısır Çarşısı',ll:[41.0166,28.9706],
+  f:['Его построили в 1660-х. Египетским назвали потому, что строили на налоги из Египта.','Рядом спрятана мечеть Рустем-паши: небольшая, вся в изникских изразцах, туристов там мало.','Рустем-паша был великим визирем и мужем Михримах, любимой дочери Сулеймана Великолепного.','Базар входит в комплекс Новой мечети: доходы от аренды лавок шли на её содержание.'],
+  tip:'Попробуйте лукум и возьмите турецкий кофе с собой. Остановка трамвая T5 в двух шагах.'},
+ {t:'15:30',n:'Эйюп Султан',tr:'Eyüp Sultan Camii',ll:[41.0482,28.9345],
+  f:['Здесь похоронен Абу Айюб аль-Ансари, сподвижник пророка Мухаммеда. Он погиб при осаде города арабами в VII веке. Это самое почитаемое место Стамбула.','Здесь новых султанов опоясывали мечом Османа.','Сюда по традиции приводят мальчиков перед обрезанием, в белых костюмах с накидкой и короной. Если повезёт, увидите их во дворе.','Весь склон холма занимает старое кладбище: быть похороненным рядом со сподвижником пророка считалось большой честью.'],
+  tip:'Сегодня пятница, молящихся будет много, ведите себя тихо. Нижняя станция канатки в 5 минутах.'},
+ {t:'15:50',n:'Холм Пьер Лоти',tr:'Piyer Loti Tepesi',ll:[41.0535,28.9335],
+  f:['Холм назван в честь французского писателя Пьера Лоти. В 1870-х он любил сидеть здесь в кофейне и писал о Стамбуле.','Лоти был морским офицером. Его роман «Азиаде» о любви к турчанке сделал Стамбул модным в Европе.','Канатную дорогу открыли в 2005 году. До неё на холм поднимались пешком через кладбище.','Вниз можно спуститься пешком по тропе через старое османское кладбище, это минут 15.'],
+  tip:'Закат около 16:40. Займите столик с видом на Золотой Рог заранее.'},
+ {t:'17:15',n:'Паром по Золотому Рогу',tr:'Eyüp İskelesi → Karaköy',ll:[41.0465,28.9370],
+  f:['В 1453 году Мехмед II перетащил около 70 кораблей по суше через холм Галаты прямо в залив.','Так он обошёл огромную цепь, которой византийцы перегородили вход в Золотой Рог. Её звенья сейчас хранятся в Военном музее.','По пути проплывёте кварталы Балат и Фенер: там стоит Патриаршество Константинопольское и красный кирпичный лицей.'],
+  tip:'Рейсы линии Haliç редкие, проверьте расписание на пристани. Если подходящего нет, вернитесь на T5.'},
+ {t:'18:00',n:'Галатская башня',tr:'Galata Kulesi',ll:[41.0256,28.9742],
+  f:['Башню построили генуэзцы в 1348 году, высота около 67 м. Галата тогда была их отдельной колонией за стенами.','По легенде, в XVII веке Хезарфен Ахмед Челеби прыгнул отсюда на самодельных крыльях и перелетел Босфор до Ускюдара.','При османах башня служила пожарной каланчой: отсюда высматривали пожары в деревянном городе.','Рядом с пристанью Каракёй начинается Тюнель, подземный фуникулёр 1875 года. Это второе старейшее метро в мире после лондонского.'],
+  tip:'Наверху узкий круговой балкон, вечером с него видно весь город в огнях. До Galataport 10 минут пешком вниз. В 18:45 выдвигайтесь.'}
+],legs:[
+ {m:'tram',x:'Трамвай <b>T1</b> Tophane → Beyazıt-Kapalıçarşı, около 20 минут',p:[[41.0265,28.9815],[41.0228,28.9758],[41.0168,28.9722],[41.0156,28.9768],[41.0132,28.9790],[41.0079,28.9757],[41.0098,28.9720]]},
+ {m:'walk',x:'Пешком вниз 15 минут по улочкам Махмутпаши',p:[[41.0135,28.9700]]},
+ {m:'tram',x:'Трамвай <b>T5</b> Eminönü → Eyüpsultan, около 25 минут',p:[[41.022,28.962],[41.027,28.952],[41.033,28.944],[41.040,28.938],[41.046,28.9355]]},
+ {m:'cable',x:'<b>Канатная дорога</b> наверх, 3 минуты'},
+ {m:'cable',x:'<b>Канатка</b> вниз и 5 минут пешком до пристани',p:[[41.0482,28.9345]]},
+ {m:'ferry',x:'<b>Паром</b> до Karaköy около 35 минут, потом 10 минут пешком в гору',p:[[41.042,28.941],[41.036,28.947],[41.029,28.955],[41.0235,28.966],[41.0215,28.973],[41.0222,28.977]]}
+]}};
+const MODES={walk:{n:'Пешком',d:'0.1 7',w:3.5},tram:{n:'Трамвай',d:'',w:4.5},ferry:{n:'Паром',d:'11 7',w:4},metro:{n:'Метро',d:'3 4',w:4.5},cable:{n:'Канатка',d:'16 4',w:3}};
+const P=(a,b)=>[(b-28.915)/0.13*1000,(41.065-a)/0.09*920];
+const pts=a=>a.map(q=>P(q[0],q[1]));
+const EU=pts([[41.13,28.78],[41.13,29.046],[41.065,29.034],[41.052,29.027],[41.046,29.015],[41.042,29.005],[41.034,28.993],[41.027,28.984],[41.021,28.977],[41.018,28.982],[41.015,28.987],[41.009,28.986],[41.003,28.979],[41.000,28.966],[41.000,28.950],[40.997,28.932],[40.993,28.78]]);
+const AS=pts([[41.13,29.078],[41.06,29.052],[41.05,29.045],[41.045,29.040],[41.036,29.030],[41.030,29.020],[41.025,29.012],[41.016,29.009],[41.008,29.010],[40.999,29.016],[40.992,29.021],[40.983,29.025],[40.978,29.035],[40.972,29.06],[40.95,29.25],[41.13,29.25]]);
+const HORN_LO=pts([[41.019,28.991],[41.0205,28.975],[41.0235,28.966],[41.029,28.955],[41.036,28.947],[41.042,28.941],[41.047,28.940]]);
+const HORN_HI=pts([[41.047,28.940],[41.054,28.942],[41.062,28.947],[41.075,28.955]]);
+const LABELS=[[40.984,28.95,'Мраморное море'],[41.046,29.024,'Босфор'],[41.0335,28.963,'Золотой Рог'],[41.013,28.948,'Старый город'],[41.041,28.972,'Бейоглу'],[41.016,29.034,'Азия'],[41.058,28.99,'Европа']];
+const line=a=>a.map((p,i)=>(i?'L':'M')+p[0].toFixed(1)+' '+p[1].toFixed(1)).join('');
+const poly=a=>line(a)+'Z';
+
+const svg=document.getElementById('map'),box=document.getElementById('mapbox'),list=document.getElementById('stops');
+let day='day1',sel=-1,view='day',vb=null,anim=0,done={};
+try{done=JSON.parse(localStorage.getItem('ist-done')||'{}')||{}}catch(e){done={}}
+const css=n=>getComputedStyle(document.body).getPropertyValue(n).trim();
+
+function routePts(d){const D=DAYS[d],o=[];D.stops.forEach((s,i)=>{o.push(P(s.ll[0],s.ll[1]));const L=D.legs[i];if(L&&L.p)L.p.forEach(q=>o.push(P(q[0],q[1])))});return o}
+function fit(arr,pad){let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;arr.forEach(p=>{x0=Math.min(x0,p[0]);y0=Math.min(y0,p[1]);x1=Math.max(x1,p[0]);y1=Math.max(y1,p[1])});return aspect([x0-pad,y0-pad,x1-x0+2*pad,y1-y0+2*pad])}
+function aspect(r){const a=(box.clientWidth||1000)/(box.clientHeight||860);let [x,y,w,h]=r;if(w/h<a){const nw=h*a;x-=(nw-w)/2;w=nw}else{const nh=w/a;y-=(nh-h)/2;h=nh}return [x,y,w,h]}
+function target(){if(view==='all')return aspect([0,40,1000,860]);if(view==='old')return aspect([395,385,150,240]);if(view==='pt'&&sel>=0){const s=DAYS[day].stops[sel],p=P(s.ll[0],s.ll[1]);return aspect([p[0]-80,p[1]-80,160,160])}return fit(routePts(day),45)}
+
+function draw(){
+  if(!vb)return;const [x,y,w,h]=vb;svg.setAttribute('viewBox',x+' '+y+' '+w+' '+h);
+  const k=Math.max(w/(box.clientWidth||1000),h/(box.clientHeight||860));
+  const c=css('--c'),ink=css('--ink'),bg=css('--bg');
+  let o='<path d="'+poly(EU)+'" fill="var(--land)" stroke="var(--coast)" stroke-width="'+(2*k)+'"/><path d="'+poly(AS)+'" fill="var(--land)" stroke="var(--coast)" stroke-width="'+(2*k)+'"/>';
+  o+='<path d="'+line(HORN_LO)+'" fill="none" stroke="var(--water)" stroke-width="40" stroke-linecap="round" stroke-linejoin="round"/><path d="'+line(HORN_HI)+'" fill="none" stroke="var(--water)" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/>';
+  o+=LABELS.map(l=>{const p=P(l[0],l[1]);return '<text x="'+p[0]+'" y="'+p[1]+'" text-anchor="middle" font-family="PT Sans,sans-serif" font-size="'+(13*k)+'" fill="var(--mute)" font-style="italic">'+l[2]+'</text>'}).join('');
+  ['day1','day2'].filter(d=>d!==day).concat(day).forEach(d=>{
+    const D=DAYS[d],act=d===day,col=act?c:css(d==='day1'?'--d1':'--d2');
+    if(act){D.legs.forEach((L,i)=>{const a=D.stops[i],b=D.stops[i+1],seg=[P(a.ll[0],a.ll[1])].concat((L.p||[]).map(q=>P(q[0],q[1])),[P(b.ll[0],b.ll[1])]),M=MODES[L.m];
+      o+='<path d="'+line(seg)+'" fill="none" stroke="'+bg+'" stroke-width="'+((M.w+3)*k)+'" stroke-linecap="round" stroke-linejoin="round" opacity=".7"/>';
+      o+='<path d="'+line(seg)+'" fill="none" stroke="'+col+'" stroke-width="'+(M.w*k)+'" stroke-linecap="round" stroke-linejoin="round"'+(M.d?' stroke-dasharray="'+M.d.split(' ').map(v=>v*k).join(' ')+'"':'')+'/>'})}
+    D.stops.forEach((s,i)=>{const p=P(s.ll[0],s.ll[1]),r=(act?(i===sel?15:12):8)*k;
+      o+='<g class="pin" data-d="'+d+'" data-i="'+i+'" style="cursor:pointer" opacity="'+(act?1:.45)+'">'+(i===sel&&act?'<circle cx="'+p[0]+'" cy="'+p[1]+'" r="'+(r+6*k)+'" fill="'+col+'" opacity=".25"/>':'')+'<circle cx="'+p[0]+'" cy="'+p[1]+'" r="'+r+'" fill="'+col+'" stroke="'+bg+'" stroke-width="'+(2.5*k)+'"/>'+(act?'<text x="'+p[0]+'" y="'+(p[1]+4.6*k)+'" text-anchor="middle" font-family="Rubik,sans-serif" font-weight="700" font-size="'+(13*k)+'" fill="#fff">'+lab(D,i)+'</text>':'')+'<circle cx="'+p[0]+'" cy="'+p[1]+'" r="'+(22*k)+'" fill="transparent"/></g>'})
+  });
+  svg.innerHTML=o;
+}
+function go(){const t=target();if(!vb||matchMedia('(prefers-reduced-motion: reduce)').matches){vb=t;draw();return}
+  const f=vb.slice(),t0=performance.now();cancelAnimationFrame(anim);
+  const step=n=>{const u=Math.min(1,(n-t0)/450),e=1-Math.pow(1-u,3);vb=f.map((v,j)=>v+(t[j]-v)*e);draw();if(u<1)anim=requestAnimationFrame(step)};anim=requestAnimationFrame(step)}
+
+function legIcon(m){const M=MODES[m];return '<svg width="34" height="10" viewBox="0 0 34 10"><path d="M3 5H31" stroke="currentColor" stroke-width="'+M.w+'" stroke-linecap="round"'+(M.d?' stroke-dasharray="'+M.d+'"':'')+'/></svg>'}
+const EMBED=true;
+const emb=s=>EMBED?'<iframe class="emb" loading="lazy" referrerpolicy="no-referrer-when-downgrade" title="Карта: '+s.n+'" src="https://maps.google.com/maps?q='+s.ll[0]+','+s.ll[1]+'&z=16&hl=ru&output=embed"></iframe>':'';
+const loc=s=>encodeURIComponent(s.q||(s.ll[0]+','+s.ll[1]));
+function gmap(s){return 'https://www.google.com/maps/search/?api=1&query='+loc(s)}
+function gdir(a,b,m){return 'https://www.google.com/maps/dir/?api=1&origin='+loc(a)+'&destination='+loc(b)+'&travelmode='+(m==='walk'?'walking':'transit')}
+function lab(D,i){const s=D.stops[i];return s.h?'⌂':String(i-(D.stops[0].h?1:0)+1)}
+function renderList(){
+  const D=DAYS[day];document.getElementById('dtitle').textContent=D.title;document.getElementById('dsub').textContent=D.sub;
+  list.innerHTML=D.stops.map((s,i)=>{const key=day+'-'+i,isd=!!done[key],L=D.legs[i],prev=D.stops[i-1];
+    const acts=(prev?'<a class="go" href="'+gdir(prev,s,D.legs[i-1].m)+'" target="_blank" rel="noopener">Маршрут сюда</a>':'')+'<a href="'+gmap(s)+'" target="_blank" rel="noopener">Открыть в картах</a><button data-show="'+i+'">На схеме</button>'+(s.h?'':'<button data-done="'+key+'" aria-pressed="'+isd+'">'+(isd?'Был тут ✓':'Отметить')+'</button>');
+    return '<li class="stop'+(i===sel?' sel':'')+(isd?' done':'')+(s.h?' home':'')+'" id="s'+i+'"><div class="time">'+s.t+'</div><div class="card"><div class="ct"><span class="num">'+lab(D,i)+'</span><div><h3>'+s.n+'</h3><div class="tr">'+s.tr+'</div></div></div>'+(s.f?'<ul>'+s.f.map(x=>'<li>'+x+'</li>').join('')+'</ul>':'')+'<p class="tip">'+s.tip+'</p>'+emb(s)+'<div class="acts">'+acts+'</div></div></li>'+(L?'<li class="leg" style="color:var(--c)">'+legIcon(L.m)+'<span style="color:var(--mute)">'+L.x+'</span></li>':'')}).join('');
+}
+function legend(){document.getElementById('legend').innerHTML=Object.keys(MODES).map(m=>'<span style="color:var(--c)">'+legIcon(m)+'<span style="color:var(--mute)">'+MODES[m].n+'</span></span>').join('')}
+function setDay(d,keep){day=d;document.body.classList.toggle('day2',d==='day2');document.querySelectorAll('.tab').forEach(t=>t.setAttribute('aria-selected',t.dataset.d===d));if(!keep){sel=-1;setView('day')}renderList();legend();go();try{if(location.hash!=='#'+d)history.replaceState(null,'','#'+d)}catch(e){}}
+function setView(v){view=v;document.querySelectorAll('.views button').forEach(b=>b.classList.toggle('on',b.dataset.v===v))}
+function select(i,scrollCard){sel=i;renderList();if(scrollCard){const el=document.getElementById('s'+i);if(el)el.scrollIntoView({behavior:'smooth',block:'nearest'})}draw()}
+
+document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click',()=>setDay(t.dataset.d)));
+document.querySelectorAll('.views button').forEach(b=>b.addEventListener('click',()=>{setView(b.dataset.v);go()}));
+svg.addEventListener('click',e=>{const g=e.target.closest('.pin');if(!g)return;const d=g.dataset.d,i=+g.dataset.i;if(d!==day){setDay(d,true)}select(i,true)});
+list.addEventListener('click',e=>{const s=e.target.closest('[data-show]'),dn=e.target.closest('[data-done]');
+  if(s){sel=+s.dataset.show;view='pt';setView('');renderList();go();if(innerWidth<900)box.scrollIntoView({behavior:'smooth',block:'start'})}
+  if(dn){const k=dn.dataset.done;done[k]=!done[k];try{localStorage.setItem('ist-done',JSON.stringify(done))}catch(e){}renderList()}});
+try{const ro=new ResizeObserver(()=>{vb=target();draw()});ro.observe(box)}catch(e){}
+addEventListener('hashchange',()=>{const h=location.hash.slice(1);if(DAYS[h]&&h!==day)setDay(h)});
+try{matchMedia('(prefers-color-scheme: dark)').addEventListener('change',draw)}catch(e){}
+new MutationObserver(draw).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
+let h0='';try{h0=location.hash.slice(1)}catch(e){}setDay(DAYS[h0]?h0:'day1');
+}
+</script>
+</body>
