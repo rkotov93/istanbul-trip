@@ -73,6 +73,12 @@ ol.stops{list-style:none;margin:0;padding:0}
 .extra p{margin:0;font-size:15.5px}
 @media(max-width:600px){.stop{grid-template-columns:50px minmax(0,1fr);gap:0 10px}.time{font-size:16px}.card{padding:12px 13px 10px}}
 @media(prefers-reduced-motion:reduce){.card{transition:none}}
+
+.mapbox{aspect-ratio:auto;height:min(62vh,560px);background:var(--water)}
+.mapbox iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
+.mapbar{display:flex;gap:6px;overflow-x:auto;padding:10px 0 2px;scrollbar-width:none}
+.mapbar button{flex:none;font:600 14px Rubik,sans-serif;border:1.5px solid var(--line);border-radius:999px;padding:0 14px;min-height:40px;background:var(--bg);color:var(--ink);cursor:pointer}
+.mapbar button.on{background:var(--c);border-color:var(--c);color:#fff}
 </style>
 </head>
 <body>
@@ -90,23 +96,15 @@ ol.stops{list-style:none;margin:0;padding:0}
 
 <div class="grid">
   <div class="mapcol">
-    <div class="mapbox" id="mapbox">
-      <svg id="map" role="img" aria-label="Схема маршрута по Стамбулу"></svg>
-      <div class="views">
-        <button data-v="day" class="on">Маршрут дня</button>
-        <button data-v="old">Старый город</button>
-        <button data-v="all">Весь город</button>
-      </div>
-    </div>
-    <div class="legend" id="legend"></div>
-    <p class="note">Схема упрощённая. «Маршрут сюда» откроет в Google Картах путь от предыдущей точки. Под каждой точкой есть карта Google.</p>
+    <div class="mapbox"><iframe id="main" loading="eager" referrerpolicy="no-referrer-when-downgrade" title="Карта маршрута"></iframe></div>
+    <div class="mapbar" id="mapbar"></div>
+    <p class="note" id="mapnote"></p>
   </div>
   <section>
     <div class="dayhead"><h2 id="dtitle"></h2><p id="dsub"></p></div>
     <ol class="stops" id="stops"></ol>
   </section>
 </div>
-
 <div class="extra">
   <div><h3>Istanbulkart</h3><p>Одна карта на двоих: прикладывайте её по очереди. Работает в метро, трамвае, на паромах и канатной дороге. Продаётся и пополняется в автоматах у станций.</p></div>
   <div><h3>Мечети</h3><p>Плечи и колени должны быть закрыты, женщинам нужно покрыть голову. На время намаза туристов не пускают. Если мечеть закрыта, подождите 20–40 минут или поменяйте порядок точек.</p></div>
@@ -181,77 +179,42 @@ day2:{title:'День 2 · пятница',sub:'Базары, канатная �
  {m:'cable',x:'<b>Канатка</b> вниз и 5 минут пешком до пристани',p:[[41.0482,28.9345]]},
  {m:'ferry',x:'<b>Паром</b> до Karaköy около 35 минут, потом 10 минут пешком в гору',p:[[41.042,28.941],[41.036,28.947],[41.029,28.955],[41.0235,28.966],[41.0215,28.973],[41.0222,28.977]]}
 ]}};
+
 const MODES={walk:{n:'Пешком',d:'0.1 7',w:3.5},tram:{n:'Трамвай',d:'',w:4.5},ferry:{n:'Паром',d:'11 7',w:4},metro:{n:'Метро',d:'3 4',w:4.5},cable:{n:'Канатка',d:'16 4',w:3}};
-const P=(a,b)=>[(b-28.915)/0.13*1000,(41.065-a)/0.09*920];
-const pts=a=>a.map(q=>P(q[0],q[1]));
-const EU=pts([[41.13,28.78],[41.13,29.046],[41.065,29.034],[41.052,29.027],[41.046,29.015],[41.042,29.005],[41.034,28.993],[41.027,28.984],[41.021,28.977],[41.018,28.982],[41.015,28.987],[41.009,28.986],[41.003,28.979],[41.000,28.966],[41.000,28.950],[40.997,28.932],[40.993,28.78]]);
-const AS=pts([[41.13,29.078],[41.06,29.052],[41.05,29.045],[41.045,29.040],[41.036,29.030],[41.030,29.020],[41.025,29.012],[41.016,29.009],[41.008,29.010],[40.999,29.016],[40.992,29.021],[40.983,29.025],[40.978,29.035],[40.972,29.06],[40.95,29.25],[41.13,29.25]]);
-const HORN_LO=pts([[41.019,28.991],[41.0205,28.975],[41.0235,28.966],[41.029,28.955],[41.036,28.947],[41.042,28.941],[41.047,28.940]]);
-const HORN_HI=pts([[41.047,28.940],[41.054,28.942],[41.062,28.947],[41.075,28.955]]);
-const LABELS=[[40.984,28.95,'Мраморное море'],[41.046,29.024,'Босфор'],[41.0335,28.963,'Золотой Рог'],[41.013,28.948,'Старый город'],[41.041,28.972,'Бейоглу'],[41.016,29.034,'Азия'],[41.058,28.99,'Европа']];
-const line=a=>a.map((p,i)=>(i?'L':'M')+p[0].toFixed(1)+' '+p[1].toFixed(1)).join('');
-const poly=a=>line(a)+'Z';
-
-const svg=document.getElementById('map'),box=document.getElementById('mapbox'),list=document.getElementById('stops');
-let day='day1',sel=-1,view='day',vb=null,anim=0,done={};
+const ll=s=>s.ll[0]+','+s.ll[1];
+const enc=encodeURIComponent;
+const embDir=(a,b,m)=>'https://maps.google.com/maps?saddr='+enc(ll(a))+'&daddr='+enc(ll(b))+'&dirflg='+(m==='walk'?'w':'r')+'&hl=ru&output=embed';
+const embPt=s=>'https://maps.google.com/maps?q='+enc(ll(s))+'&z=16&hl=ru&output=embed';
+const embDay=D=>{const p=D.stops.filter((s,i)=>!(s.h&&i>0));return 'https://maps.google.com/maps?saddr='+enc(ll(p[0]))+'&daddr='+p.slice(1).map(s=>enc(ll(s))).join('+to:')+'&dirflg=w&hl=ru&output=embed'};
+const gq=s=>enc(s.q||ll(s));
+const gmap=s=>'https://www.google.com/maps/search/?api=1&query='+gq(s);
+const gdir=(a,b,m)=>'https://www.google.com/maps/dir/?api=1&origin='+gq(a)+'&destination='+gq(b)+'&travelmode='+(m==='walk'?'walking':'transit');
+const lab=(D,i)=>D.stops[i].h?'⌂':String(i-(D.stops[0].h?1:0)+1);
+const main=document.getElementById('main'),bar=document.getElementById('mapbar'),note=document.getElementById('mapnote'),list=document.getElementById('stops');
+let day='day1',sel=-1,done={};
 try{done=JSON.parse(localStorage.getItem('ist-done')||'{}')||{}}catch(e){done={}}
-const css=n=>getComputedStyle(document.body).getPropertyValue(n).trim();
-
-function routePts(d){const D=DAYS[d],o=[];D.stops.forEach((s,i)=>{o.push(P(s.ll[0],s.ll[1]));const L=D.legs[i];if(L&&L.p)L.p.forEach(q=>o.push(P(q[0],q[1])))});return o}
-function fit(arr,pad){let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;arr.forEach(p=>{x0=Math.min(x0,p[0]);y0=Math.min(y0,p[1]);x1=Math.max(x1,p[0]);y1=Math.max(y1,p[1])});return aspect([x0-pad,y0-pad,x1-x0+2*pad,y1-y0+2*pad])}
-function aspect(r){const a=(box.clientWidth||1000)/(box.clientHeight||860);let [x,y,w,h]=r;if(w/h<a){const nw=h*a;x-=(nw-w)/2;w=nw}else{const nh=w/a;y-=(nh-h)/2;h=nh}return [x,y,w,h]}
-function target(){if(view==='all')return aspect([0,40,1000,860]);if(view==='old')return aspect([395,385,150,240]);if(view==='pt'&&sel>=0){const s=DAYS[day].stops[sel],p=P(s.ll[0],s.ll[1]);return aspect([p[0]-80,p[1]-80,160,160])}return fit(routePts(day),45)}
-
-function draw(){
-  if(!vb)return;const [x,y,w,h]=vb;svg.setAttribute('viewBox',x+' '+y+' '+w+' '+h);
-  const k=Math.max(w/(box.clientWidth||1000),h/(box.clientHeight||860));
-  const c=css('--c'),ink=css('--ink'),bg=css('--bg');
-  let o='<path d="'+poly(EU)+'" fill="var(--land)" stroke="var(--coast)" stroke-width="'+(2*k)+'"/><path d="'+poly(AS)+'" fill="var(--land)" stroke="var(--coast)" stroke-width="'+(2*k)+'"/>';
-  o+='<path d="'+line(HORN_LO)+'" fill="none" stroke="var(--water)" stroke-width="40" stroke-linecap="round" stroke-linejoin="round"/><path d="'+line(HORN_HI)+'" fill="none" stroke="var(--water)" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/>';
-  o+=LABELS.map(l=>{const p=P(l[0],l[1]);return '<text x="'+p[0]+'" y="'+p[1]+'" text-anchor="middle" font-family="PT Sans,sans-serif" font-size="'+(13*k)+'" fill="var(--mute)" font-style="italic">'+l[2]+'</text>'}).join('');
-  ['day1','day2'].filter(d=>d!==day).concat(day).forEach(d=>{
-    const D=DAYS[d],act=d===day,col=act?c:css(d==='day1'?'--d1':'--d2');
-    if(act){D.legs.forEach((L,i)=>{const a=D.stops[i],b=D.stops[i+1],seg=[P(a.ll[0],a.ll[1])].concat((L.p||[]).map(q=>P(q[0],q[1])),[P(b.ll[0],b.ll[1])]),M=MODES[L.m];
-      o+='<path d="'+line(seg)+'" fill="none" stroke="'+bg+'" stroke-width="'+((M.w+3)*k)+'" stroke-linecap="round" stroke-linejoin="round" opacity=".7"/>';
-      o+='<path d="'+line(seg)+'" fill="none" stroke="'+col+'" stroke-width="'+(M.w*k)+'" stroke-linecap="round" stroke-linejoin="round"'+(M.d?' stroke-dasharray="'+M.d.split(' ').map(v=>v*k).join(' ')+'"':'')+'/>'})}
-    D.stops.forEach((s,i)=>{const p=P(s.ll[0],s.ll[1]),r=(act?(i===sel?15:12):8)*k;
-      o+='<g class="pin" data-d="'+d+'" data-i="'+i+'" style="cursor:pointer" opacity="'+(act?1:.45)+'">'+(i===sel&&act?'<circle cx="'+p[0]+'" cy="'+p[1]+'" r="'+(r+6*k)+'" fill="'+col+'" opacity=".25"/>':'')+'<circle cx="'+p[0]+'" cy="'+p[1]+'" r="'+r+'" fill="'+col+'" stroke="'+bg+'" stroke-width="'+(2.5*k)+'"/>'+(act?'<text x="'+p[0]+'" y="'+(p[1]+4.6*k)+'" text-anchor="middle" font-family="Rubik,sans-serif" font-weight="700" font-size="'+(13*k)+'" fill="#fff">'+lab(D,i)+'</text>':'')+'<circle cx="'+p[0]+'" cy="'+p[1]+'" r="'+(22*k)+'" fill="transparent"/></g>'})
-  });
-  svg.innerHTML=o;
-}
-function go(){const t=target();if(!vb||matchMedia('(prefers-reduced-motion: reduce)').matches){vb=t;draw();return}
-  const f=vb.slice(),t0=performance.now();cancelAnimationFrame(anim);
-  const step=n=>{const u=Math.min(1,(n-t0)/450),e=1-Math.pow(1-u,3);vb=f.map((v,j)=>v+(t[j]-v)*e);draw();if(u<1)anim=requestAnimationFrame(step)};anim=requestAnimationFrame(step)}
-
+function setMap(){const D=DAYS[day];let src,txt;
+  if(sel<1){src=embDay(D);txt='Обзор дня: все точки по порядку. Линия пешеходная, только для ориентира. Транспорт между точками смотрите кнопками выше.'}
+  else{const a=D.stops[sel-1],b=D.stops[sel],L=D.legs[sel-1];src=embDir(a,b,L.m);txt=lab(D,sel-1)+' → '+lab(D,sel)+': '+L.x.replace(/<[^>]+>/g,'')}
+  if(main.getAttribute('src')!==src)main.setAttribute('src',src);note.textContent=txt;
+  bar.innerHTML='<button data-sel="-1" class="'+(sel<1?'on':'')+'">Весь день</button>'+D.stops.map((s,i)=>i?'<button data-sel="'+i+'" class="'+(i===sel?'on':'')+'">'+lab(D,i-1)+' → '+lab(D,i)+'</button>':'').join('');
+  const on=bar.querySelector('.on');if(on)try{on.scrollIntoView({block:'nearest',inline:'center'})}catch(e){}}
 function legIcon(m){const M=MODES[m];return '<svg width="34" height="10" viewBox="0 0 34 10"><path d="M3 5H31" stroke="currentColor" stroke-width="'+M.w+'" stroke-linecap="round"'+(M.d?' stroke-dasharray="'+M.d+'"':'')+'/></svg>'}
-const EMBED=true;
-const emb=s=>EMBED?'<iframe class="emb" loading="lazy" referrerpolicy="no-referrer-when-downgrade" title="Карта: '+s.n+'" src="https://maps.google.com/maps?q='+s.ll[0]+','+s.ll[1]+'&z=16&hl=ru&output=embed"></iframe>':'';
-const loc=s=>encodeURIComponent(s.q||(s.ll[0]+','+s.ll[1]));
-function gmap(s){return 'https://www.google.com/maps/search/?api=1&query='+loc(s)}
-function gdir(a,b,m){return 'https://www.google.com/maps/dir/?api=1&origin='+loc(a)+'&destination='+loc(b)+'&travelmode='+(m==='walk'?'walking':'transit')}
-function lab(D,i){const s=D.stops[i];return s.h?'⌂':String(i-(D.stops[0].h?1:0)+1)}
-function renderList(){
-  const D=DAYS[day];document.getElementById('dtitle').textContent=D.title;document.getElementById('dsub').textContent=D.sub;
-  list.innerHTML=D.stops.map((s,i)=>{const key=day+'-'+i,isd=!!done[key],L=D.legs[i],prev=D.stops[i-1];
-    const acts=(prev?'<a class="go" href="'+gdir(prev,s,D.legs[i-1].m)+'" target="_blank" rel="noopener">Маршрут сюда</a>':'')+'<a href="'+gmap(s)+'" target="_blank" rel="noopener">Открыть в картах</a><button data-show="'+i+'">На схеме</button>'+(s.h?'':'<button data-done="'+key+'" aria-pressed="'+isd+'">'+(isd?'Был тут ✓':'Отметить')+'</button>');
-    return '<li class="stop'+(i===sel?' sel':'')+(isd?' done':'')+(s.h?' home':'')+'" id="s'+i+'"><div class="time">'+s.t+'</div><div class="card"><div class="ct"><span class="num">'+lab(D,i)+'</span><div><h3>'+s.n+'</h3><div class="tr">'+s.tr+'</div></div></div>'+(s.f?'<ul>'+s.f.map(x=>'<li>'+x+'</li>').join('')+'</ul>':'')+'<p class="tip">'+s.tip+'</p>'+emb(s)+'<div class="acts">'+acts+'</div></div></li>'+(L?'<li class="leg" style="color:var(--c)">'+legIcon(L.m)+'<span style="color:var(--mute)">'+L.x+'</span></li>':'')}).join('');
-}
-function legend(){document.getElementById('legend').innerHTML=Object.keys(MODES).map(m=>'<span style="color:var(--c)">'+legIcon(m)+'<span style="color:var(--mute)">'+MODES[m].n+'</span></span>').join('')}
-function setDay(d,keep){day=d;document.body.classList.toggle('day2',d==='day2');document.querySelectorAll('.tab').forEach(t=>t.setAttribute('aria-selected',t.dataset.d===d));if(!keep){sel=-1;setView('day')}renderList();legend();go();try{if(location.hash!=='#'+d)history.replaceState(null,'','#'+d)}catch(e){}}
-function setView(v){view=v;document.querySelectorAll('.views button').forEach(b=>b.classList.toggle('on',b.dataset.v===v))}
-function select(i,scrollCard){sel=i;renderList();if(scrollCard){const el=document.getElementById('s'+i);if(el)el.scrollIntoView({behavior:'smooth',block:'nearest'})}draw()}
-
+function renderList(){const D=DAYS[day];document.getElementById('dtitle').textContent=D.title;document.getElementById('dsub').textContent=D.sub;
+  list.innerHTML=D.stops.map((s,i)=>{const key=day+'-'+i,isd=!!done[key],L=D.legs[i],prev=D.stops[i-1],pm=prev?D.legs[i-1].m:null;
+    const fr=prev?embDir(prev,s,pm):embPt(s);
+    const acts=(prev?'<a class="go" href="'+gdir(prev,s,pm)+'" target="_blank" rel="noopener">Маршрут в приложении</a>':'')+'<a href="'+gmap(s)+'" target="_blank" rel="noopener">Точка в Google Картах</a>'+(prev?'<button data-show="'+i+'">Наверх, на большую карту</button>':'')+(s.h?'':'<button data-done="'+key+'" aria-pressed="'+isd+'">'+(isd?'Был тут ✓':'Отметить')+'</button>');
+    return '<li class="stop'+(i===sel?' sel':'')+(isd?' done':'')+(s.h?' home':'')+'" id="s'+i+'"><div class="time">'+s.t+'</div><div class="card"><div class="ct"><span class="num">'+lab(D,i)+'</span><div><h3>'+s.n+'</h3><div class="tr">'+s.tr+'</div></div></div>'+(s.f?'<ul>'+s.f.map(x=>'<li>'+x+'</li>').join('')+'</ul>':'')+'<p class="tip">'+s.tip+'</p><iframe class="emb" loading="lazy" referrerpolicy="no-referrer-when-downgrade" title="Карта: '+s.n+'" src="'+fr+'"></iframe><div class="acts">'+acts+'</div></div></li>'+(L?'<li class="leg" style="color:var(--c)">'+legIcon(L.m)+'<span style="color:var(--mute)">'+L.x+'</span></li>':'')}).join('')}
+function setDay(d){day=d;sel=-1;document.body.classList.toggle('day2',d==='day2');document.querySelectorAll('.tab').forEach(t=>t.setAttribute('aria-selected',t.dataset.d===d));renderList();setMap();try{if(location.hash!=='#'+d)history.replaceState(null,'','#'+d)}catch(e){}}
+function mark(){list.querySelectorAll('.stop').forEach(li=>li.classList.toggle('sel',li.id==='s'+sel))}
 document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click',()=>setDay(t.dataset.d)));
-document.querySelectorAll('.views button').forEach(b=>b.addEventListener('click',()=>{setView(b.dataset.v);go()}));
-svg.addEventListener('click',e=>{const g=e.target.closest('.pin');if(!g)return;const d=g.dataset.d,i=+g.dataset.i;if(d!==day){setDay(d,true)}select(i,true)});
+bar.addEventListener('click',e=>{const b=e.target.closest('[data-sel]');if(!b)return;sel=+b.dataset.sel;setMap();mark();if(sel>0){const el=document.getElementById('s'+sel);if(el&&innerWidth>=900)el.scrollIntoView({behavior:'smooth',block:'nearest'})}});
 list.addEventListener('click',e=>{const s=e.target.closest('[data-show]'),dn=e.target.closest('[data-done]');
-  if(s){sel=+s.dataset.show;view='pt';setView('');renderList();go();if(innerWidth<900)box.scrollIntoView({behavior:'smooth',block:'start'})}
-  if(dn){const k=dn.dataset.done;done[k]=!done[k];try{localStorage.setItem('ist-done',JSON.stringify(done))}catch(e){}renderList()}});
-try{const ro=new ResizeObserver(()=>{vb=target();draw()});ro.observe(box)}catch(e){}
-addEventListener('hashchange',()=>{const h=location.hash.slice(1);if(DAYS[h]&&h!==day)setDay(h)});
-try{matchMedia('(prefers-color-scheme: dark)').addEventListener('change',draw)}catch(e){}
-new MutationObserver(draw).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
+  if(s){sel=+s.dataset.show;setMap();mark();document.querySelector('.mapbox').scrollIntoView({behavior:'smooth',block:'start'})}
+  if(dn){const k=dn.dataset.done;done[k]=!done[k];try{localStorage.setItem('ist-done',JSON.stringify(done))}catch(e){}const li=dn.closest('.stop');li.classList.toggle('done',done[k]);dn.setAttribute('aria-pressed',done[k]);dn.textContent=done[k]?'Был тут ✓':'Отметить'}});
+addEventListener('hashchange',()=>{let h='';try{h=location.hash.slice(1)}catch(e){}if(DAYS[h]&&h!==day)setDay(h)});
 let h0='';try{h0=location.hash.slice(1)}catch(e){}setDay(DAYS[h0]?h0:'day1');
 }
 </script>
 </body>
+</html>
